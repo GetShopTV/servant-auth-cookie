@@ -126,6 +126,7 @@ import           Data.ByteString                  (ByteString)
 import qualified Data.ByteString                  as BS
 import qualified Data.ByteString.Base64           as Base64
 import qualified Data.ByteString.Char8            as BSC8
+import           Data.Coerce                      (coerce)
 import           Data.Default
 import           Data.IORef
 import           Data.List                        (partition)
@@ -150,6 +151,7 @@ import           Servant.API.ResponseHeaders      (AddHeader)
 import           Servant.Server                   (ServerError (..), err403)
 import           Servant.Server.Experimental.Auth
 import           Web.Cookie
+import           Web.HttpApiData
 
 #if !MIN_VERSION_base(4,8,0)
 import           Control.Applicative
@@ -157,6 +159,7 @@ import           Control.Applicative
 
 #if MIN_VERSION_servant(0,9,0)
 import           Data.Text                        (Text)
+import           Data.Text.Encoding               (encodeUtf8)
 import           Servant                          (ToHttpApiData (..))
 #else
 import           Data.ByteString.Conversion       (ToByteString (..))
@@ -251,6 +254,9 @@ instance Serialize Cookie where
 -- | A newtype wrapper over 'ByteString'
 newtype EncryptedSession = EncryptedSession ByteString
   deriving (Eq, Show, Typeable)
+
+instance FromHttpApiData EncryptedSession where
+  parseUrlPiece = pure . coerce . encodeUtf8
 
 -- | An empty 'EncryptedSession'
 emptyEncryptedSession :: EncryptedSession
