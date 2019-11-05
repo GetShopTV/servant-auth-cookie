@@ -12,21 +12,21 @@
   paper \"A Secure Cookie Protocol\" by Alex Liu et al.
 -}
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 
 module Servant.Server.Experimental.Auth.Cookie
@@ -108,67 +108,68 @@ module Servant.Server.Experimental.Auth.Cookie
   , applyCipherAlgorithm
   ) where
 
-import Blaze.ByteString.Builder (toByteString)
-import Control.Arrow ((&&&), first)
-import Control.Monad
-import Control.Monad.Catch (MonadThrow (..), Exception)
-import Control.Monad.Except
-import Crypto.Cipher.AES (AES256)
-import Crypto.Cipher.Types
-import Crypto.Error
-import Crypto.Hash (HashAlgorithm(..))
-import Crypto.Hash.Algorithms (SHA256)
-import Crypto.MAC.HMAC (HMAC)
-import Crypto.Random (DRG(..), drgNew)
-import Data.ByteString (ByteString)
-import Data.Default
-import Data.IORef
-import Data.List (partition)
-import Data.Maybe (listToMaybe)
-import Data.Monoid ((<>))
-import Data.Proxy
-import Data.Serialize (Serialize(..))
-import Data.Tagged (Tagged (..), retag)
-import Data.Time
-import Data.Time.Clock.Serialize ()
-import Data.Typeable
-import GHC.Generics (Generic)
-import GHC.TypeLits (Symbol)
-import Network.HTTP.Types (hCookie, HeaderName, RequestHeaders, ResponseHeaders)
-import Network.Wai (Request, requestHeaders)
-import Servant (addHeader, ServantErr (..))
-import Servant.API.Experimental.Auth (AuthProtect)
-import Servant.API.ResponseHeaders (AddHeader)
-import Servant.Server (err403)
-import Servant.Server.Experimental.Auth
-import Web.Cookie
-import qualified Crypto.MAC.HMAC        as H
-import qualified Data.ByteArray         as BA
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Base64 as Base64
-import qualified Data.ByteString.Char8  as BSC8
-import qualified Data.Serialize as Serialize (encode, decode)
-import qualified Network.HTTP.Types as N(Header)
+import           Blaze.ByteString.Builder         (toByteString)
+import           Control.Arrow                    (first, (&&&))
+import           Control.Monad
+import           Control.Monad.Catch              (Exception, MonadThrow (..))
+import           Control.Monad.Except
+import           Crypto.Cipher.AES                (AES256)
+import           Crypto.Cipher.Types
+import           Crypto.Error
+import           Crypto.Hash                      (HashAlgorithm (..))
+import           Crypto.Hash.Algorithms           (SHA256)
+import           Crypto.MAC.HMAC                  (HMAC)
+import qualified Crypto.MAC.HMAC                  as H
+import           Crypto.Random                    (DRG (..), drgNew)
+import qualified Data.ByteArray                   as BA
+import           Data.ByteString                  (ByteString)
+import qualified Data.ByteString                  as BS
+import qualified Data.ByteString.Base64           as Base64
+import qualified Data.ByteString.Char8            as BSC8
+import           Data.Default
+import           Data.IORef
+import           Data.List                        (partition)
+import           Data.Maybe                       (listToMaybe)
+import           Data.Monoid                      ((<>))
+import           Data.Proxy
+import           Data.Serialize                   (Serialize (..))
+import qualified Data.Serialize                   as Serialize (decode, encode)
+import           Data.Tagged                      (Tagged (..), retag)
+import           Data.Time
+import           Data.Time.Clock.Serialize        ()
+import           Data.Typeable
+import           GHC.Generics                     (Generic)
+import           GHC.TypeLits                     (Symbol)
+import           Network.HTTP.Types               (HeaderName, RequestHeaders,
+                                                   ResponseHeaders, hCookie)
+import qualified Network.HTTP.Types               as N (Header)
+import           Network.Wai                      (Request, requestHeaders)
+import           Servant                          (addHeader)
+import           Servant.API.Experimental.Auth    (AuthProtect)
+import           Servant.API.ResponseHeaders      (AddHeader)
+import           Servant.Server                   (ServerError (..), err403)
+import           Servant.Server.Experimental.Auth
+import           Web.Cookie
 
 #if !MIN_VERSION_base(4,8,0)
-import Control.Applicative
+import           Control.Applicative
 #endif
 
 #if MIN_VERSION_servant(0,9,0)
-import Servant (ToHttpApiData (..))
-import Data.Text (Text)
+import           Data.Text                        (Text)
+import           Servant                          (ToHttpApiData (..))
 #else
-import Data.ByteString.Conversion (ToByteString (..))
+import           Data.ByteString.Conversion       (ToByteString (..))
 #endif
 
 #if MIN_VERSION_servant(0,9,1)
-import Servant (noHeader)
-import Servant.API.ResponseHeaders (Headers)
-import qualified Servant.API.Header as S(Header)
+import           Servant                          (noHeader)
+import qualified Servant.API.Header               as S (Header)
+import           Servant.API.ResponseHeaders      (Headers)
 #endif
 
 #if MIN_VERSION_http_types(0,10,0)
-import Network.HTTP.Types.Header (hSetCookie)
+import           Network.HTTP.Types.Header        (hSetCookie)
 #endif
 
 #if MIN_VERSION_http_types(0,10,0)
@@ -622,14 +623,14 @@ removeSession acs response =
 
 -- | Add cookie session to error allowing to set cookie even if response is
 -- not 200.
-addSessionToErr :: AddSession ServantErr ServantErr
+addSessionToErr :: AddSession ServerError ServerError
 addSessionToErr acs rs sk pwSettings pwSession err = do
   header <- renderSession acs rs sk pwSettings pwSession ()
   return err { errHeaders = (hSetCookie, header) : errHeaders err }
 
 -- | "Remove" a session by invalidating the cookie.
 -- Cookie expiry date is set at 0  and content is wiped
-removeSessionFromErr :: RemoveSession ServantErr ServantErr
+removeSessionFromErr :: RemoveSession ServerError ServerError
 removeSessionFromErr acs err =
   return $ err { errHeaders = (hSetCookie, renderExpiredSession acs) : errHeaders err }
 
